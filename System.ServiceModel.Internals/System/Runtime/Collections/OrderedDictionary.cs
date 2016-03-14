@@ -1,14 +1,10 @@
-//-----------------------------------------------------------------------------
-// Copyright (c) Microsoft Corporation.  All rights reserved.
-//-----------------------------------------------------------------------------
+using System.Collections.Specialized;
+using System.Linq;
 
-namespace System.Runtime.Collections
+// ReSharper disable CheckNamespace -- be available where Dictionary<,> is
+
+namespace System.Collections.Generic
 {
-    using System;
-    using System.Collections;
-    using System.Collections.Generic;
-    using System.Collections.Specialized;
-
     /// <summary>
     ///     System.Collections.Specialized.OrderedDictionary is NOT generic.
     ///     This class is essentially a generic wrapper for OrderedDictionary.
@@ -30,7 +26,7 @@ namespace System.Runtime.Collections
         {
             if (dictionary == null) return;
 
-            _privateDictionary = new OrderedDictionary();
+            _privateDictionary = new OrderedDictionary(dictionary.Count);
 
             foreach (var pair in dictionary)
             {
@@ -41,37 +37,17 @@ namespace System.Runtime.Collections
         int ICollection.Count => _privateDictionary.Count;
         object ICollection.SyncRoot => ((ICollection) _privateDictionary).SyncRoot;
         bool ICollection.IsSynchronized => ((ICollection) _privateDictionary).IsSynchronized;
+        void ICollection.CopyTo(Array array, int index) => _privateDictionary.CopyTo(array, index);
 
-        bool IDictionary.IsFixedSize => ((IDictionary) _privateDictionary).IsFixedSize;
-        bool IDictionary.IsReadOnly => _privateDictionary.IsReadOnly;
         ICollection IDictionary.Keys => _privateDictionary.Keys;
         ICollection IDictionary.Values => _privateDictionary.Values;
-
-        void IDictionary.Add(object key, object value)
-        {
-            _privateDictionary.Add(key, value);
-        }
-
-        void IDictionary.Clear()
-        {
-            _privateDictionary.Clear();
-        }
-
-        bool IDictionary.Contains(object key)
-        {
-            return _privateDictionary.Contains(key);
-        }
-
-        IDictionaryEnumerator IDictionary.GetEnumerator()
-        {
-            return _privateDictionary.GetEnumerator();
-        }
-
-        void IDictionary.Remove(object key)
-        {
-            _privateDictionary.Remove(key);
-        }
-
+        bool IDictionary.IsFixedSize => ((IDictionary) _privateDictionary).IsFixedSize;
+        bool IDictionary.IsReadOnly => _privateDictionary.IsReadOnly;
+        void IDictionary.Add(object key, object value) => _privateDictionary.Add(key, value);
+        void IDictionary.Clear() => _privateDictionary.Clear();
+        bool IDictionary.Contains(object key) => _privateDictionary.Contains(key);
+        void IDictionary.Remove(object key) => _privateDictionary.Remove(key);
+        IDictionaryEnumerator IDictionary.GetEnumerator() => _privateDictionary.GetEnumerator();
 
         object IDictionary.this[object key]
         {
@@ -79,14 +55,28 @@ namespace System.Runtime.Collections
             set { _privateDictionary[key] = value; }
         }
 
-        void ICollection.CopyTo(Array array, int index)
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
-            _privateDictionary.CopyTo(array, index);
+            var enumerable = from DictionaryEntry entry in _privateDictionary
+                select new KeyValuePair<TKey, TValue>((TKey) entry.Key, (TValue) entry.Value);
+
+            return enumerable.GetEnumerator();
         }
 
         public bool IsReadOnly => false;
         public int Count => _privateDictionary.Count;
 
+        /// <summary>
+        ///     Gets or sets the <see cref="TValue" /> with the specified key.
+        /// </summary>
+        /// <value>
+        ///     The <see cref="TValue" />.
+        /// </value>
+        /// <param name="key">The key.</param>
+        /// <returns></returns>
+        /// <exception cref="System.ArgumentNullException">key</exception>
         public TValue this[TKey key]
         {
             get
@@ -132,11 +122,14 @@ namespace System.Runtime.Collections
             }
         }
 
-        public void Add(KeyValuePair<TKey, TValue> item)
-        {
-            Add(item.Key, item.Value);
-        }
+        public void Add(KeyValuePair<TKey, TValue> item) => Add(item.Key, item.Value);
 
+        /// <summary>
+        ///     Adds an element with the provided key and value to the <see cref="T:System.Collections.Generic.IDictionary`2" />.
+        /// </summary>
+        /// <param name="key">The object to use as the key of the element to add.</param>
+        /// <param name="value">The object to use as the value of the element to add.</param>
+        /// <exception cref="System.ArgumentNullException">key</exception>
         public void Add(TKey key, TValue value)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
@@ -144,21 +137,25 @@ namespace System.Runtime.Collections
             _privateDictionary.Add(key, value);
         }
 
-        public void Clear()
-        {
-            _privateDictionary.Clear();
-        }
+        public void Clear() => _privateDictionary.Clear();
 
         public bool Contains(KeyValuePair<TKey, TValue> item)
         {
-            if (item.Key == null || !_privateDictionary.Contains(item.Key))
-            {
-                return false;
-            }
+            if (item.Key == null || !_privateDictionary.Contains(item.Key)) return false;
 
             return _privateDictionary[item.Key].Equals(item.Value);
         }
 
+        /// <summary>
+        ///     Determines whether the <see cref="T:System.Collections.Generic.IDictionary`2" /> contains an element with the
+        ///     specified key.
+        /// </summary>
+        /// <param name="key">The key to locate in the <see cref="T:System.Collections.Generic.IDictionary`2" />.</param>
+        /// <returns>
+        ///     true if the <see cref="T:System.Collections.Generic.IDictionary`2" /> contains an element with the key; otherwise,
+        ///     false.
+        /// </returns>
+        /// <exception cref="System.ArgumentNullException">key</exception>
         public bool ContainsKey(TKey key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
@@ -166,12 +163,29 @@ namespace System.Runtime.Collections
             return _privateDictionary.Contains(key);
         }
 
-        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+
+        /// <summary>
+        ///     Copies the elements of the <see cref="T:System.Collections.Generic.ICollection`1" /> to an
+        ///     <see cref="T:System.Array" />, starting at a particular <see cref="T:System.Array" /> index.
+        /// </summary>
+        /// <param name="array">
+        ///     The one-dimensional <see cref="T:System.Array" /> that is the destination of the elements copied
+        ///     from <see cref="T:System.Collections.Generic.ICollection`1" />. The <see cref="T:System.Array" /> must have
+        ///     zero-based indexing.
+        /// </param>
+        /// <param name="arrayIndex">The zero-based index in <paramref name="array" /> at which copying begins.</param>
+        /// <exception cref="System.ArgumentNullException">array</exception>
+        /// <exception cref="System.ArgumentOutOfRangeException">arrayIndex is &lt; 0</exception>
+        /// <exception cref="System.ArgumentException">
+        ///     Cannot copy to array, array dimensions insufficient
+        /// </exception>
+        public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex = 0)
         {
             if (array == null) throw new ArgumentNullException(nameof(array));
             if (arrayIndex < 0) throw new ArgumentOutOfRangeException(nameof(arrayIndex));
-            if (array.Rank > 1 || arrayIndex >= array.Length || array.Length - arrayIndex < _privateDictionary.Count)
-                throw new ArgumentException("Bad Copy ToArray", nameof(array));
+            if (array.Rank > 1) throw new ArgumentException($"array.Rank of {array.Rank} exceeds dimensions allowed (1)");
+            if (arrayIndex >= array.Length || array.Length - arrayIndex < _privateDictionary.Count)
+                throw new ArgumentException("Cannot copy to array, array dimensions insufficient", nameof(array));
 
             var index = arrayIndex;
             foreach (DictionaryEntry entry in _privateDictionary)
@@ -179,19 +193,6 @@ namespace System.Runtime.Collections
                 array[index] = new KeyValuePair<TKey, TValue>((TKey) entry.Key, (TValue) entry.Value);
                 index++;
             }
-        }
-
-        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
-        {
-            foreach (DictionaryEntry entry in _privateDictionary)
-            {
-                yield return new KeyValuePair<TKey, TValue>((TKey) entry.Key, (TValue) entry.Value);
-            }
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
         }
 
         public bool Remove(KeyValuePair<TKey, TValue> item)
@@ -203,6 +204,15 @@ namespace System.Runtime.Collections
             return true;
         }
 
+
+        /// <summary>
+        ///     Removes the element with the specified key from the <see cref="T:System.Collections.Generic.IDictionary`2" />.
+        /// </summary>
+        /// <param name="key">The key of the element to remove.</param>
+        /// <returns>
+        ///     true if the element is successfully removed; otherwise, false.
+        /// </returns>
+        /// <exception cref="System.ArgumentNullException">key</exception>
         public bool Remove(TKey key)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
@@ -214,6 +224,20 @@ namespace System.Runtime.Collections
             return true;
         }
 
+        /// <summary>
+        ///     Gets the value associated with the specified key.
+        /// </summary>
+        /// <param name="key">The key whose value to get.</param>
+        /// <param name="value">
+        ///     When this method returns, the value associated with the specified key, if the key is found;
+        ///     otherwise, the default value for the type of the <paramref name="value" /> parameter. This parameter is passed
+        ///     uninitialized.
+        /// </param>
+        /// <returns>
+        ///     true if the object that implements <see cref="T:System.Collections.Generic.IDictionary`2" /> contains an element
+        ///     with the specified key; otherwise, false.
+        /// </returns>
+        /// <exception cref="System.ArgumentNullException">key</exception>
         public bool TryGetValue(TKey key, out TValue value)
         {
             if (key == null) throw new ArgumentNullException(nameof(key));
