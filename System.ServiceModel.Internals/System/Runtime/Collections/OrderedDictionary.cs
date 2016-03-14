@@ -9,72 +9,102 @@ namespace System.Runtime.Collections
     using System.Collections.Generic;
     using System.Collections.Specialized;
 
-    // System.Collections.Specialized.OrderedDictionary is NOT generic.
-    // This class is essentially a generic wrapper for OrderedDictionary.
-    class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
+    /// <summary>
+    ///     System.Collections.Specialized.OrderedDictionary is NOT generic.
+    ///     This class is essentially a generic wrapper for OrderedDictionary.
+    ///     https://github.com/Microsoft/referencesource/blob/master/System.ServiceModel.Internals/System/Runtime/Collections/OrderedDictionary.cs
+    /// </summary>
+    /// <remarks>
+    ///     Indexer here will NOT throw KeyNotFoundException
+    /// </remarks>
+    public class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     {
-        OrderedDictionary privateDictionary;
+        private readonly OrderedDictionary _privateDictionary;
 
         public OrderedDictionary()
         {
-            this.privateDictionary = new OrderedDictionary();
+            _privateDictionary = new OrderedDictionary();
         }
 
         public OrderedDictionary(IDictionary<TKey, TValue> dictionary)
         {
-            if (dictionary != null)
-            {
-                this.privateDictionary = new OrderedDictionary();
+            if (dictionary == null) return;
 
-                foreach (KeyValuePair<TKey, TValue> pair in dictionary)
-                {
-                    this.privateDictionary.Add(pair.Key, pair.Value);
-                }
+            _privateDictionary = new OrderedDictionary();
+
+            foreach (var pair in dictionary)
+            {
+                _privateDictionary.Add(pair.Key, pair.Value);
             }
         }
 
-        public int Count
+        int ICollection.Count => _privateDictionary.Count;
+        object ICollection.SyncRoot => ((ICollection) _privateDictionary).SyncRoot;
+        bool ICollection.IsSynchronized => ((ICollection) _privateDictionary).IsSynchronized;
+
+        bool IDictionary.IsFixedSize => ((IDictionary) _privateDictionary).IsFixedSize;
+        bool IDictionary.IsReadOnly => _privateDictionary.IsReadOnly;
+        ICollection IDictionary.Keys => _privateDictionary.Keys;
+        ICollection IDictionary.Values => _privateDictionary.Values;
+
+        void IDictionary.Add(object key, object value)
         {
-            get
-            {
-                return this.privateDictionary.Count;
-            }
+            _privateDictionary.Add(key, value);
         }
 
-        public bool IsReadOnly
+        void IDictionary.Clear()
         {
-            get
-            {
-                return false;
-            }
+            _privateDictionary.Clear();
         }
+
+        bool IDictionary.Contains(object key)
+        {
+            return _privateDictionary.Contains(key);
+        }
+
+        IDictionaryEnumerator IDictionary.GetEnumerator()
+        {
+            return _privateDictionary.GetEnumerator();
+        }
+
+        void IDictionary.Remove(object key)
+        {
+            _privateDictionary.Remove(key);
+        }
+
+
+        object IDictionary.this[object key]
+        {
+            get { return _privateDictionary[key]; }
+            set { _privateDictionary[key] = value; }
+        }
+
+        void ICollection.CopyTo(Array array, int index)
+        {
+            _privateDictionary.CopyTo(array, index);
+        }
+
+        public bool IsReadOnly => false;
+        public int Count => _privateDictionary.Count;
 
         public TValue this[TKey key]
         {
             get
             {
-                if (key == null)
+                if (key == null) throw new ArgumentNullException(nameof(key));
+
+                if (_privateDictionary.Contains(key))
                 {
-                    throw Fx.Exception.ArgumentNull("key");
+                    return (TValue) _privateDictionary[key];
                 }
 
-                if (this.privateDictionary.Contains(key))
-                {
-                    return (TValue)this.privateDictionary[(object)key];
-                }
-                else
-                {
-                    throw Fx.Exception.AsError(new KeyNotFoundException(InternalSR.KeyNotFoundInDictionary));
-                }
+                return default(TValue);
             }
             set
             {
-                if (key == null)
-                {
-                    throw Fx.Exception.ArgumentNull("key");
-                }
+                if (key == null) throw new ArgumentNullException(nameof(key));
 
-                this.privateDictionary[(object)key] = value;
+                _privateDictionary[key] = value;
             }
         }
 
@@ -82,18 +112,11 @@ namespace System.Runtime.Collections
         {
             get
             {
-                List<TKey> keys = new List<TKey>(this.privateDictionary.Count);
-                
-                foreach (TKey key in this.privateDictionary.Keys)
-                {
-                    keys.Add(key);
-                }
+                var keys = new List<TKey>(_privateDictionary.Count);
 
-                // Keys should be put in a ReadOnlyCollection,
-                // but since this is an internal class, for performance reasons,
-                // we choose to avoid creating yet another collection.
+                keys.AddRange(_privateDictionary.Keys.Cast<TKey>());
 
-                return keys;
+                return keys.AsReadOnly();
             }
         }
 
@@ -101,18 +124,11 @@ namespace System.Runtime.Collections
         {
             get
             {
-                List<TValue> values = new List<TValue>(this.privateDictionary.Count);
+                var values = new List<TValue>(_privateDictionary.Count);
 
-                foreach (TValue value in this.privateDictionary.Values)
-                {
-                    values.Add(value);
-                }
+                values.AddRange(_privateDictionary.Values.Cast<TValue>());
 
-                // Values should be put in a ReadOnlyCollection,
-                // but since this is an internal class, for performance reasons,
-                // we choose to avoid creating yet another collection.
-
-                return values;
+                return values.AsReadOnly();
             }
         }
 
@@ -123,71 +139,53 @@ namespace System.Runtime.Collections
 
         public void Add(TKey key, TValue value)
         {
-            if (key == null)
-            {
-                throw Fx.Exception.ArgumentNull("key");
-            }
+            if (key == null) throw new ArgumentNullException(nameof(key));
 
-            this.privateDictionary.Add(key, value);
+            _privateDictionary.Add(key, value);
         }
 
         public void Clear()
         {
-            this.privateDictionary.Clear();
+            _privateDictionary.Clear();
         }
 
         public bool Contains(KeyValuePair<TKey, TValue> item)
         {
-            if (item.Key == null || !this.privateDictionary.Contains(item.Key))
+            if (item.Key == null || !_privateDictionary.Contains(item.Key))
             {
                 return false;
             }
-            else
-            {
-                return this.privateDictionary[(object)item.Key].Equals(item.Value);
-            }
+
+            return _privateDictionary[item.Key].Equals(item.Value);
         }
 
         public bool ContainsKey(TKey key)
         {
-            if (key == null)
-            {
-                throw Fx.Exception.ArgumentNull("key");
-            }
+            if (key == null) throw new ArgumentNullException(nameof(key));
 
-            return this.privateDictionary.Contains(key);
+            return _privateDictionary.Contains(key);
         }
 
         public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
         {
-            if (array == null)
-            {
-                throw Fx.Exception.ArgumentNull("array");
-            }
+            if (array == null) throw new ArgumentNullException(nameof(array));
+            if (arrayIndex < 0) throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+            if (array.Rank > 1 || arrayIndex >= array.Length || array.Length - arrayIndex < _privateDictionary.Count)
+                throw new ArgumentException("Bad Copy ToArray", nameof(array));
 
-            if (arrayIndex < 0)
+            var index = arrayIndex;
+            foreach (DictionaryEntry entry in _privateDictionary)
             {
-                throw Fx.Exception.AsError(new ArgumentOutOfRangeException("arrayIndex"));
-            }
-
-            if (array.Rank > 1 || arrayIndex >= array.Length || array.Length - arrayIndex < this.privateDictionary.Count)
-            {
-                throw Fx.Exception.Argument("array", InternalSR.BadCopyToArray);
-            }
-
-            int index = arrayIndex;
-            foreach (DictionaryEntry entry in this.privateDictionary)
-            {
-                array[index] = new KeyValuePair<TKey, TValue>((TKey)entry.Key, (TValue)entry.Value);
+                array[index] = new KeyValuePair<TKey, TValue>((TKey) entry.Key, (TValue) entry.Value);
                 index++;
             }
         }
 
         public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
         {
-            foreach (DictionaryEntry entry in this.privateDictionary)
+            foreach (DictionaryEntry entry in _privateDictionary)
             {
-                yield return new KeyValuePair<TKey, TValue>((TKey)entry.Key, (TValue)entry.Value);
+                yield return new KeyValuePair<TKey, TValue>((TKey) entry.Key, (TValue) entry.Value);
             }
         }
 
@@ -198,145 +196,33 @@ namespace System.Runtime.Collections
 
         public bool Remove(KeyValuePair<TKey, TValue> item)
         {
-            if (Contains(item))
-            {
-                this.privateDictionary.Remove(item.Key);
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            if (false == Contains(item)) return false;
+
+            _privateDictionary.Remove(item.Key);
+
+            return true;
         }
 
         public bool Remove(TKey key)
         {
-            if (key == null)
-            {
-                throw Fx.Exception.ArgumentNull("key");
-            }
+            if (key == null) throw new ArgumentNullException(nameof(key));
 
-            if (this.privateDictionary.Contains(key))
-            {
-                this.privateDictionary.Remove(key);
-                return true;
-            }
-            else
-            {
-                return false;
-            }
+            if (false == _privateDictionary.Contains(key)) return false;
+
+            _privateDictionary.Remove(key);
+
+            return true;
         }
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            if (key == null)
-            {
-                throw Fx.Exception.ArgumentNull("key");
-            }
+            if (key == null) throw new ArgumentNullException(nameof(key));
 
-            bool keyExists = this.privateDictionary.Contains(key);
-            value = keyExists ? (TValue)this.privateDictionary[(object)key] : default(TValue);
+            var keyExists = _privateDictionary.Contains(key);
+
+            value = keyExists ? (TValue) _privateDictionary[key] : default(TValue);
 
             return keyExists;
         }
-
-        void IDictionary.Add(object key, object value)
-        {
-            this.privateDictionary.Add(key, value);
-        }
-
-        void IDictionary.Clear()
-        {
-            this.privateDictionary.Clear();
-        }
-
-        bool IDictionary.Contains(object key)
-        {
-            return this.privateDictionary.Contains(key);
-        }
-
-        IDictionaryEnumerator IDictionary.GetEnumerator()
-        {
-            return this.privateDictionary.GetEnumerator();
-        }
-
-        bool IDictionary.IsFixedSize
-        {
-            get
-            {
-                return ((IDictionary)this.privateDictionary).IsFixedSize;
-            }
-        }
-
-        bool IDictionary.IsReadOnly
-        {
-            get
-            {
-                return this.privateDictionary.IsReadOnly;
-            }
-        }
-
-        ICollection IDictionary.Keys
-        {
-            get
-            {
-                return this.privateDictionary.Keys;
-            }
-        }
-
-        void IDictionary.Remove(object key)
-        {
-            this.privateDictionary.Remove(key);
-        }
-
-        ICollection IDictionary.Values
-        {
-            get
-            {
-                return this.privateDictionary.Values;
-            }
-        }
-
-        object IDictionary.this[object key]
-        {
-            get
-            {
-                return this.privateDictionary[key];
-            }
-            set
-            {
-                this.privateDictionary[key] = value;
-            }
-        }
-
-        void ICollection.CopyTo(Array array, int index)
-        {
-            this.privateDictionary.CopyTo(array, index);
-        }
-
-        int ICollection.Count
-        {
-            get
-            {
-                return this.privateDictionary.Count;
-            }
-        }
-
-        bool ICollection.IsSynchronized
-        {
-            get
-            {
-                return ((ICollection)this.privateDictionary).IsSynchronized;
-            }
-        }
-
-        object ICollection.SyncRoot
-        {
-            get
-            {
-                return ((ICollection)this.privateDictionary).SyncRoot;
-            }
-        }
-
     }
 }
