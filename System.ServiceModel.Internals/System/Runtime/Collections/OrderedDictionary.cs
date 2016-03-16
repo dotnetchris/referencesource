@@ -1,5 +1,6 @@
 using System.Collections.Specialized;
 using System.Linq;
+using JetBrains.Annotations;
 
 // ReSharper disable CheckNamespace -- be available where Dictionary<,> is
 
@@ -17,21 +18,31 @@ namespace System.Collections.Generic
     {
         private readonly OrderedDictionary _privateDictionary;
 
+        /// <summary>
+        /// Initializes a new mutable instance of the <see cref="OrderedDictionary{TKey, TValue}"/> class.
+        /// </summary>
         public OrderedDictionary()
         {
             _privateDictionary = new OrderedDictionary();
         }
 
-        public OrderedDictionary(IDictionary<TKey, TValue> dictionary)
+        /// <summary>
+        /// Initializes a new READ ONLY instance of the <see cref="OrderedDictionary{TKey, TValue}"/> class.
+        /// </summary>
+        /// <param name="dictionary">The dictionary.</param>
+        /// <exception cref="System.ArgumentNullException"></exception>
+        private OrderedDictionary([NotNull] IDictionary<TKey, TValue> dictionary)
         {
-            if (dictionary == null) return;
+            if (dictionary == null) throw new ArgumentNullException(nameof(dictionary));
 
-            _privateDictionary = new OrderedDictionary(dictionary.Count);
+            var orderedDictionary = new OrderedDictionary(dictionary.Count);
 
             foreach (var pair in dictionary)
             {
-                _privateDictionary.Add(pair.Key, pair.Value);
+                orderedDictionary.Add(pair.Key, pair.Value);
             }
+
+            _privateDictionary = orderedDictionary.AsReadOnly();
         }
 
         int ICollection.Count => _privateDictionary.Count;
@@ -65,7 +76,7 @@ namespace System.Collections.Generic
             return enumerable.GetEnumerator();
         }
 
-        public bool IsReadOnly => false;
+        public bool IsReadOnly => _privateDictionary.IsReadOnly;
         public int Count => _privateDictionary.Count;
 
         /// <summary>
@@ -163,7 +174,6 @@ namespace System.Collections.Generic
             return _privateDictionary.Contains(key);
         }
 
-
         /// <summary>
         ///     Copies the elements of the <see cref="T:System.Collections.Generic.ICollection`1" /> to an
         ///     <see cref="T:System.Array" />, starting at a particular <see cref="T:System.Array" /> index.
@@ -203,7 +213,6 @@ namespace System.Collections.Generic
 
             return true;
         }
-
 
         /// <summary>
         ///     Removes the element with the specified key from the <see cref="T:System.Collections.Generic.IDictionary`2" />.
@@ -248,5 +257,19 @@ namespace System.Collections.Generic
 
             return keyExists;
         }
+
+        /// <summary>
+        ///     Creates a read only ordered dictionary by copying key value pairs.
+        /// </summary>
+        /// <param name="dictionary">The dictionary.</param>
+        /// <returns>Read only ordered dictionary containing the elements in dictionary</returns>
+        public static OrderedDictionary<TKey, TValue> CreateReadOnlyOrder([NotNull] IDictionary<TKey, TValue> dictionary)
+            => new OrderedDictionary<TKey, TValue>(dictionary);
+
+        /// <summary>
+        ///     Copies the key value pairs of this dictionary into a new read only ordered dictionary
+        /// </summary>
+        /// <returns>Read only ordered dictionary containing the same elements</returns>
+        public OrderedDictionary<TKey, TValue> AsReadOnly() => new OrderedDictionary<TKey, TValue>(this);
     }
 }
