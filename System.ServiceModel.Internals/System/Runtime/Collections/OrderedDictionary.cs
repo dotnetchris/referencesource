@@ -263,7 +263,7 @@ namespace System.Collections.Generic
         /// </summary>
         /// <param name="dictionary">The dictionary.</param>
         /// <returns>Read only ordered dictionary containing the elements in dictionary</returns>
-        public static OrderedDictionary<TKey, TValue> CreateReadOnlyOrder([NotNull] IDictionary<TKey, TValue> dictionary)
+        public static OrderedDictionary<TKey, TValue> CreateReadOnly([NotNull] IDictionary<TKey, TValue> dictionary)
             => new OrderedDictionary<TKey, TValue>(dictionary);
 
         /// <summary>
